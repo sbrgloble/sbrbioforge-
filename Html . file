@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBRBIOFORGE SYSTEM CONTROL</title>
+    <style>
+        body { background-color: #0d0d0d; color: #e5e5e5; font-family: 'Courier New', monospace; padding: 20px; text-align: center; }
+        .cyber-card { border: 2px solid #333; padding: 20px; border-radius: 10px; max-width: 500px; margin: auto; background: #111; box-shadow: 0 0 15px rgba(255,255,255,0.05); }
+        h1 { color: #fff; letter-spacing: 2px; margin-bottom: 5px; font-size: 24px; }
+        .tagline { color: #888; font-size: 11px; margin-bottom: 20px; letter-spacing: 1px; }
+        label { display: block; text-align: left; font-size: 11px; margin-top: 15px; color: #aaa; }
+        select, textarea, button { width: 100%; padding: 12px; margin-top: 5px; background: #000; border: 1px solid #444; color: #fff; border-radius: 5px; box-sizing: border-box; font-family: inherit; }
+        textarea { resize: none; color: #e5e5e5; height: 100px; }
+        button { background: linear-gradient(45deg, #333, #fff); color: #000; font-weight: bold; cursor: pointer; border: none; margin-top: 20px; letter-spacing: 1px; }
+        .terminal-box { margin-top: 25px; background: #000; border: 1px dashed #555; border-radius: 8px; padding: 15px; min-height: 120px; text-align: left; font-size: 13px; white-space: pre-wrap; color: #e5e5e5; }
+    </style>
+</head>
+<body>
+    <div class="cyber-card">
+        <h1>SBRBIOFORGE</h1>
+        <div class="tagline">100-YEAR CENTURY COMPANION</div>
+        
+        <label>SELECT ACTIVE CYBER-MODULE:</label>
+        <select id="cyber-module">
+            <option value="health">🧬 Health Predictor (Longevity)</option>
+            <option value="legacy">🧠 Digital Legacy Core</option>
+            <option value="eco">🌍 Eco-Tracker Core</option>
+            <option value="skills">📚 Skills Coach Core</option>
+            <option value="shield">🛡️ Tech Shield Core</option>
+        </select>
+
+        <label>PUT ACTIVE DATA OR PROFILE:</label>
+        <textarea id="user-payload" placeholder="Enter routine metrics, medical risks, or queries..."></textarea>
+
+        <button onclick="initializeTransmission()">INITIALIZE TRANSMISSION</button>
+        <div class="terminal-box" id="terminal">Awaiting Secure Pulse Connection...</div>
+    </div>
+
+    <script>
+        async function initializeTransmission() {
+            const module = document.getElementById("cyber-module").value;
+            const query = document.getElementById("user-payload").value;
+            const terminal = document.getElementById("terminal");
+
+            if(!query.trim()) { 
+                terminal.innerText = "ERROR: Payload empty. Transmission aborted."; 
+                return; 
+            }
+            
+            terminal.innerText = `SWITCH COMMAND: Booting Selected Agent [${module}]...\nSTATUS: Contacting Groq Cloud Gateway...`;
+
+            const prompts = {
+                "health": "You are the SBRBIOFORGE Health Engine. Analyze metrics, predict risks. Always reply in Hindi language using simple terms.",
+                "legacy": "You are the SBRBIOFORGE Digital Legacy Core. Manage lifelong data. Always reply in Hindi language.",
+                "eco": "You are the SBRBIOFORGE Eco-Tracker Core. Guide on sustainable living. Always reply in Hindi language.",
+                "skills": "You are the SBRBIOFORGE Skills Coach Core. Help learn future adaptions. Always reply in Hindi language.",
+                "shield": "You are the SBRBIOFORGE Tech Shield Core. Provide identity defense advice. Always reply in Hindi language."
+            };
+
+            try {
+                const response = await fetch("https://groq.com", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer gsk_nVTzKCFqj89bIKPSxhqzWGdyb3FYV00DKgCzEwxpffI2vErkFFa"
+                    },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: [
+                            { role: "system", content: prompts[module] },
+                            { role: "user", content: query }
+                        ],
+                        temperature: 0.6
+                    })
+                });
+
+                const data = await response.json();
+                if(data.choices && data.choices[0]) {
+                    terminal.innerText = `[ SBRBIOFORGE RESPONSE REPORT ]\n--------------------------------\n${data.choices[0].message.content}`;
+                } else {
+                    terminal.innerText = "SYSTEM ERROR: Invalid response from AI gateway.";
+                }
+            } catch (error) {
+                terminal.innerText = "CONNECTION ERROR: Failed to establish secure connection.";
+            }
+        }
+    </script>
+</body>
+</html>
