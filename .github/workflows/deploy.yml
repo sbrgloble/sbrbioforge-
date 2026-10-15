@@ -1,0 +1,119 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION || 'asia-south2' }}
+  CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE || 'sbrhikmah' }}
+
+jobs:
+  deploy-backend:
+    name: Deploy backend to Cloud Run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check backend exists
+        id: check
+        run: |
+          if [ -f server.js ] && [ -f package.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::server.js or package.json not found; skipping backend deploy"
+          fi
+
+      - name: Authenticate to Google Cloud
+        if: steps.check.outputs.exists == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        if: steps.check.outputs.exists == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Deploy to Cloud Run
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          gcloud run deploy "$CLOUD_RUN_SERVICE" \
+            --source . \
+            --project "$GCP_PROJECT_ID" \
+            --region "$GCP_REGION" \
+            --allow-unauthenticated \
+            --quiet
+
+  deploy-frontend:
+    name: Deploy ${{ matrix.app }} to Firebase Hosting
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: hikmah
+            dir: sbrhikmah.com
+          - app: beautyhub
+            dir: sbrbeautyhub.com
+          - app: bioforge
+            dir: sbrbioforge.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check app exists
+        id: check
+        run: |
+          if [ -f "${{ matrix.dir }}/package.json" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::${{ matrix.dir }}/package.json not found; skipping ${{ matrix.app }}"
+          fi
+
+      - name: Set up Node.js
+        if: steps.check.outputs.exists == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install and build
+        if: steps.check.outputs.exists == 'true'
+        working-directory: ${{ matrix.dir }}
+        run: |
+          npm install
+          npm run build
+
+      - name: Authenticate to Google Cloud
+        if: steps.check.outputs.exists == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        if: steps.check.outputs.exists == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Deploy to Firebase Hosting
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          npx --yes firebase-tools@latest deploy \
+            --only "hosting:${{ matrix.app }}" \
+            --project "$GCP_PROJECT_ID" \
+            --non-interactive
